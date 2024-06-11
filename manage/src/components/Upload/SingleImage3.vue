@@ -1,0 +1,184 @@
+<template>
+  <div class="upload-container">
+    <el-upload
+      action="https://up-z2.qiniup.com"
+      class="image-uploader"
+      :on-success="handleImageSuccess"
+      :on-remove="rmImage"
+      :before-upload="beforeUpload"
+      :file-list="fileList"
+      list-type="picture"
+      :data="dataObj"
+      :multiple="false"
+    >
+      <el-button size="small" type="primary">点击上传</el-button>
+    </el-upload>
+    <!-- <div class="image-preview image-app-preview">
+      <div v-show="imageUrl.length > 1" class="image-preview-wrapper">
+        <img :src="imageUrl" />
+        <div class="image-preview-action">
+          <i class="el-icon-delete" @click="rmImage" />
+        </div>
+      </div>
+    </div>
+    <div class="image-preview">
+      <div v-show="imageUrl.length > 1" class="image-preview-wrapper">
+        <img :src="imageUrl" />
+        <div class="image-preview-action">
+          <i class="el-icon-delete" @click="rmImage" />
+        </div>
+      </div>
+    </div> -->
+  </div>
+</template>
+
+<script>
+import { getToken, upload } from "@/api/qiniu";
+
+export default {
+  name: "SingleImageUpload3",
+  props: {
+    value: {
+      type: String,
+      default: "",
+    },
+  },
+  data() {
+    return {
+      tempUrl: "",
+      dataObj: { token: "", key: "" },
+      fileList: [],
+    };
+  },
+  computed: {
+    imageUrl() {
+      return this.value;
+    },
+  },
+  methods: {
+    rmImage(file, fileList) {
+      console.log("rm", file, fileList);
+      this.fileList = fileList;
+      const idStr = fileList.map((file) => file.id).join(",");
+      this.emitInput(idStr);
+    },
+    emitInput(val) {
+      this.$emit("uploadSuccess", val);
+    },
+    handleImageSuccess(response, file, fileList) {
+      // this.emitInput(file.files.file);
+      this.fileList = fileList;
+      console.log(response);
+      return new Promise((resolve, reject) => {
+        upload({
+          path: response.key,
+        })
+          .then((response) => {
+            console.log("response", response.result);
+            // this.fileList = this.fileList.slice(-1); // 保留最后一个
+            this.fileList[this.fileList.length - 1].id = response.result;
+            const idStr = fileList.map((file) => file.id).join(",");
+            console.log("idStr", idStr);
+            this.emitInput(idStr);
+            resolve(true);
+          })
+          .catch((err) => {
+            console.log(err);
+            reject(false);
+          });
+      });
+    },
+    beforeUpload(file) {
+      console.log("beforeUpload");
+      const _self = this;
+      return new Promise((resolve, reject) => {
+        getToken()
+          .then((response) => {
+            console.log("response", response);
+            const key = file.name;
+            const token = JSON.parse(response.result);
+            _self._data.dataObj.token = token;
+            _self._data.dataObj.key = key;
+            // this.tempUrl = response.data.qiniu_url;
+            resolve(true);
+          })
+          .catch((err) => {
+            console.log(err);
+            reject(false);
+          });
+      });
+    },
+  },
+};
+</script>
+
+<style lang="scss" scoped>
+@import "~@/styles/mixin.scss";
+.upload-container {
+  width: 100%;
+  position: relative;
+  @include clearfix;
+  .image-uploader {
+    width: 35%;
+    float: left;
+  }
+  .image-preview {
+    width: 200px;
+    height: 200px;
+    position: relative;
+    border: 1px dashed #d9d9d9;
+    float: left;
+    margin-left: 50px;
+    .image-preview-wrapper {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      img {
+        width: 100%;
+        height: 100%;
+      }
+    }
+    .image-preview-action {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      left: 0;
+      top: 0;
+      cursor: default;
+      text-align: center;
+      color: #fff;
+      opacity: 0;
+      font-size: 20px;
+      background-color: rgba(0, 0, 0, 0.5);
+      transition: opacity 0.3s;
+      cursor: pointer;
+      text-align: center;
+      line-height: 200px;
+      .el-icon-delete {
+        font-size: 36px;
+      }
+    }
+    &:hover {
+      .image-preview-action {
+        opacity: 1;
+      }
+    }
+  }
+  .image-app-preview {
+    width: 320px;
+    height: 180px;
+    position: relative;
+    border: 1px dashed #d9d9d9;
+    float: left;
+    margin-left: 50px;
+    .app-fake-conver {
+      height: 44px;
+      position: absolute;
+      width: 100%; // background: rgba(0, 0, 0, .1);
+      text-align: center;
+      line-height: 64px;
+      color: #fff;
+    }
+  }
+}
+</style>
